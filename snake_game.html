@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: monospace;
+    color: #fff;
+  }
+  #score {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+  }
+  canvas {
+    display: block;
+    border: 1px solid #333;
+  }
+  #overlay {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  #overlay h1 { font-size: 48px; font-weight: bold; }
+  #overlay p  { font-size: 18px; color: #aaa; }
+</style>
+</head>
+<body>
+<div id="score">Score: 0</div>
+<div style="position:relative">
+  <canvas id="canvas" width="600" height="600"></canvas>
+  <div id="overlay">
+    <h1 id="title">SNAKE</h1>
+    <p id="subtitle">Press ENTER to start</p>
+  </div>
+</div>
+
+<script>
+const CELL = 20;
+const COLS = 30;
+const ROWS = 30;
+const FPS = 10;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const scoreEl = document.getElementById('score');
+const titleEl = document.getElementById('title');
+const subtitleEl = document.getElementById('subtitle');
+
+const DIR = { UP:[0,-1], DOWN:[0,1], LEFT:[-1,0], RIGHT:[1,0] };
+
+let snake, food, dir, nextDir, score, running, gameLoop;
+
+function spawnFood() {
+  let pos;
+  do {
+    pos = [Math.floor(Math.random()*COLS), Math.floor(Math.random()*ROWS)];
+  } while (snake.some(s => s[0]===pos[0] && s[1]===pos[1]));
+  return pos;
+}
+
+function startGame() {
+  snake = [[COLS>>1, ROWS>>1]];
+  dir = DIR.RIGHT;
+  nextDir = DIR.RIGHT;
+  food = spawnFood();
+  score = 0;
+  running = true;
+  overlay.style.display = 'none';
+  scoreEl.textContent = 'Score: 0';
+  clearInterval(gameLoop);
+  gameLoop = setInterval(tick, 1000/FPS);
+}
+
+function tick() {
+  dir = nextDir;
+  const [hx, hy] = snake[0];
+  const [dx, dy] = dir;
+  const newHead = [hx+dx, hy+dy];
+
+  // Wall collision
+  if (newHead[0]<0 || newHead[0]>=COLS || newHead[1]<0 || newHead[1]>=ROWS) {
+    return endGame();
+  }
+  // Self collision
+  if (snake.some(s => s[0]===newHead[0] && s[1]===newHead[1])) {
+    return endGame();
+  }
+
+  snake.unshift(newHead);
+
+  if (newHead[0]===food[0] && newHead[1]===food[1]) {
+    score++;
+    scoreEl.textContent = `Score: ${score}`;
+    food = spawnFood();
+  } else {
+    snake.pop();
+  }
+
+  draw();
+}
+
+function endGame() {
+  clearInterval(gameLoop);
+  running = false;
+  titleEl.textContent = `Game Over! Score: ${score}`;
+  subtitleEl.textContent = 'Press ENTER to play again';
+  overlay.style.display = 'flex';
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = '#282828';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= canvas.width; x += CELL) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y <= canvas.height; y += CELL) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  // Snake
+  snake.forEach(([x, y], i) => {
+    ctx.fillStyle = i === 0 ? '#00c800' : '#009600';
+    roundRect(x*CELL+1, y*CELL+1, CELL-2, CELL-2, 4);
+  });
+
+  // Food
+  const [fx, fy] = food;
+  ctx.fillStyle = '#c80000';
+  roundRect(fx*CELL+2, fy*CELL+2, CELL-4, CELL-4, 6);
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+document.addEventListener('keydown', e => {
+  if (!running) {
+    if (e.key === 'Enter') startGame();
+    return;
+  }
+  const [dx, dy] = dir;
+  switch(e.key) {
+    case 'ArrowUp':    case 'w': if (dy !== 1)  nextDir = DIR.UP;    break;
+    case 'ArrowDown':  case 's': if (dy !== -1) nextDir = DIR.DOWN;  break;
+    case 'ArrowLeft':  case 'a': if (dx !== 1)  nextDir = DIR.LEFT;  break;
+    case 'ArrowRight': case 'd': if (dx !== -1) nextDir = DIR.RIGHT; break;
+  }
+});
+
+// Initial draw of empty grid
+draw();
+</script>
+</body>
+</html>
